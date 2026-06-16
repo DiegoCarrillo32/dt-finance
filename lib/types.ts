@@ -114,3 +114,34 @@ export interface ExchangeRate {
 export type ActionResult<T = void> =
   | { success: true; data?: T }
   | { success: false; error: string }
+
+export type DebtType = 'credit_card' | 'personal_loan' | 'mortgage' | 'student_loan' | 'other'
+export type BillingPeriod = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+
+export interface Debt {
+  id: string
+  user_id: string
+  name: string
+  type: DebtType
+  creditor: string | null
+  original_amount_cents: number
+  current_balance_cents: number
+  interest_rate_bps: number
+  minimum_payment_cents: number
+  due_day_of_month: number | null
+  currency: Currency
+  created_at: string
+}
+
+export interface Subscription {
+  id: string
+  user_id: string
+  name: string
+  amount_cents: number
+  currency: Currency
+  billing_period: BillingPeriod
+  next_billing_date: string | null
+  notes: string | null
+  active: boolean
+  created_at: string
+}

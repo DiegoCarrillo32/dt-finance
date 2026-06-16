@@ -14,6 +14,12 @@ import {
   Coffee,
   MoreHorizontal,
   X,
+  CreditCard,
+  TrendingUp,
+  CalendarRange,
+  Calendar,
+  Repeat,
+  FileDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -25,14 +31,24 @@ const goals = { href: '/goals', label: 'Goals', icon: Target }
 const statistics = { href: '/statistics', label: 'Statistics', icon: BarChart2 }
 const accounts = { href: '/accounts', label: 'Accounts', icon: Wallet }
 const settings = { href: '/settings', label: 'Settings', icon: Settings }
+const debtTracker = { href: '/debt-tracker', label: 'Debt Tracker', icon: CreditCard }
+const netWorth = { href: '/net-worth', label: 'Net Worth', icon: TrendingUp }
+const cashFlow = { href: '/cash-flow', label: 'Cash Flow', icon: CalendarRange }
+const calendarNav = { href: '/calendar', label: 'Calendar', icon: Calendar }
+const subscriptionsNav = { href: '/subscriptions', label: 'Subscriptions', icon: Repeat }
+const reports = { href: '/reports', label: 'Reports', icon: FileDown }
 
 // Desktop sidebar shows everything.
-const nav = [dashboard, transactions, recurring, goals, statistics, accounts, settings]
+const nav = [
+  dashboard, transactions, recurring, goals, statistics, accounts,
+  debtTracker, netWorth, cashFlow, calendarNav, subscriptionsNav, reports,
+  settings,
+]
 
 // On mobile, four primary tabs stay in the bottom bar; the rest live behind "More"
 // so every destination — including Settings — is reachable with a comfortable tap target.
 const mobilePrimary = [dashboard, transactions, statistics, goals]
-const mobileMore = [recurring, accounts, settings]
+const mobileMore = [recurring, accounts, debtTracker, netWorth, cashFlow, calendarNav, subscriptionsNav, reports, settings]
 
 export function Sidebar() {
   const pathname = usePathname()
