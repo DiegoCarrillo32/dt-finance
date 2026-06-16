@@ -97,23 +97,3 @@ export async function deleteSubscription(id: string): Promise<ActionResult> {
   revalidatePath('/calendar')
   return { success: true }
 }
-
-/** Monthly cost equivalent for a subscription (in its own currency, in cents). */
-export function monthlyEquivalent(amountCents: number, period: BillingPeriod): number {
-  switch (period) {
-    case 'weekly':    return Math.round(amountCents * 52 / 12)
-    case 'monthly':   return amountCents
-    case 'quarterly': return Math.round(amountCents / 3)
-    case 'yearly':    return Math.round(amountCents / 12)
-  }
-}
-
-/** Yearly cost equivalent for a subscription (in its own currency, in cents). */
-export function yearlyEquivalent(amountCents: number, period: BillingPeriod): number {
-  switch (period) {
-    case 'weekly':    return Math.round(amountCents * 52)
-    case 'monthly':   return amountCents * 12
-    case 'quarterly': return amountCents * 4
-    case 'yearly':    return amountCents
-  }
-}

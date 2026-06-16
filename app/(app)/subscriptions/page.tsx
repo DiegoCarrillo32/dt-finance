@@ -16,9 +16,8 @@ import {
   updateSubscription,
   toggleSubscriptionActive,
   deleteSubscription,
-  monthlyEquivalent,
-  yearlyEquivalent,
 } from '@/lib/actions/subscriptions'
+import { monthlyEquivalent, yearlyEquivalent } from '@/lib/finance'
 import { formatCurrency, parseCentsInput, formatDate } from '@/lib/utils'
 import type { BillingPeriod, Currency, Subscription } from '@/lib/types'
 

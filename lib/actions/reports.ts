@@ -75,17 +75,3 @@ export async function getReportData(filters: ReportFilters): Promise<ReportSumma
     count: transactions.length,
   }
 }
-
-export function buildCsvString(transactions: ReportTransaction[]): string {
-  const headers = ['Date', 'Type', 'Description', 'Amount', 'Currency', 'Account', 'Category']
-  const rows = transactions.map((t) => [
-    t.date,
-    t.type,
-    `"${t.description.replace(/"/g, '""')}"`,
-    (t.amount_cents / 100).toFixed(2),
-    t.currency,
-    `"${t.account_name.replace(/"/g, '""')}"`,
-    `"${t.category_name.replace(/"/g, '""')}"`,
-  ])
-  return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-}

@@ -1,4 +1,4 @@
-import type { Currency, TransactionType } from '@/lib/types'
+import type { BillingPeriod, Currency, TransactionType } from '@/lib/types'
 
 /**
  * Pure money math. No I/O, no framework — everything here is unit-tested in
@@ -152,6 +152,26 @@ export function isDueInMonth(r: RecurrenceSchedule, year: number, month: number)
 export function hasEnded(endDate: string | null, year: number, month: number): boolean {
   if (!endDate) return false
   return year * 12 + (month - 1) > monthOrdinal(endDate)
+}
+
+/** Monthly cost equivalent for a subscription (in its own currency, in cents). */
+export function monthlyEquivalent(amountCents: number, period: BillingPeriod): number {
+  switch (period) {
+    case 'weekly':    return Math.round(amountCents * 52 / 12)
+    case 'monthly':   return amountCents
+    case 'quarterly': return Math.round(amountCents / 3)
+    case 'yearly':    return Math.round(amountCents / 12)
+  }
+}
+
+/** Yearly cost equivalent for a subscription (in its own currency, in cents). */
+export function yearlyEquivalent(amountCents: number, period: BillingPeriod): number {
+  switch (period) {
+    case 'weekly':    return Math.round(amountCents * 52)
+    case 'monthly':   return amountCents * 12
+    case 'quarterly': return amountCents * 4
+    case 'yearly':    return amountCents
+  }
 }
 
 export interface CategoryTxn extends AmountTxn {
