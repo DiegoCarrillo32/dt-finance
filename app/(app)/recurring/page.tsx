@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, PauseCircle, PlayCircle, CheckCircle2 } from 'luc
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
 import { Modal } from '@/components/ui/Modal'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { CurrencyToggle } from '@/components/CurrencyToggle'
@@ -178,21 +179,27 @@ export default function RecurringPage() {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const cat = r.category as any
               return (
-                <li key={r.id} className="flex items-center gap-3 p-4">
-                  <div
-                    className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                    style={{ backgroundColor: cat?.color ?? '#7a1318' }}
-                  >
-                    {r.name[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{r.name}</p>
-                    <p className="text-xs text-muted-foreground">{scheduleText(r)}</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-bold text-red-500">
+                <li
+                  key={r.id}
+                  className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-3"
+                >
+                  <div className="flex items-center gap-3 min-w-0 sm:flex-1">
+                    <div
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                      style={{ backgroundColor: cat?.color ?? '#7a1318' }}
+                    >
+                      {r.name[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{r.name}</p>
+                      <p className="text-xs text-muted-foreground">{scheduleText(r)}</p>
+                    </div>
+                    <span className="text-sm font-bold text-red-500 shrink-0">
                       {formatCurrency(r.amount_cents, r.currency)}
                     </span>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-1 shrink-0">
                     <Badge
                       variant={
                         !r.active ? 'muted'
@@ -211,7 +218,9 @@ export default function RecurringPage() {
 
                     {/* Mark as paid / back to pending — only when due this month */}
                     {r.active && r.due_this_month && (
-                      <button
+                      <IconButton
+                        variant="success"
+                        active={r.paid}
                         onClick={() =>
                           r.paid ? handleUnmarkPaid(r.paid_transaction_id) : handleMarkPaid(r.id)
                         }
@@ -220,43 +229,29 @@ export default function RecurringPage() {
                             ? 'Paid this month — click to mark as pending again'
                             : 'Mark as paid — records a transaction'
                         }
-                        className={
-                          r.paid
-                            ? 'p-1.5 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors'
-                            : 'p-1.5 rounded-lg hover:bg-green-100 text-muted-foreground hover:text-green-600 transition-colors'
-                        }
                       >
                         <CheckCircle2 className="h-4 w-4" />
-                      </button>
+                      </IconButton>
                     )}
 
                     {/* Pause / Resume */}
-                    <button
+                    <IconButton
                       onClick={() => handleToggle(r.id, r.active)}
                       title={r.active ? 'Pause — stop tracking this expense' : 'Resume tracking'}
-                      className="p-1.5 rounded-lg hover:bg-warm-roast/10 text-muted-foreground transition-colors"
                     >
                       {r.active ? (
                         <PauseCircle className="h-4 w-4 text-amber-500" />
                       ) : (
                         <PlayCircle className="h-4 w-4 text-green-600" />
                       )}
-                    </button>
+                    </IconButton>
 
-                    <button
-                      onClick={() => setEditing(r)}
-                      title="Edit"
-                      className="p-1.5 rounded-lg hover:bg-warm-roast/10 text-muted-foreground transition-colors"
-                    >
+                    <IconButton onClick={() => setEditing(r)} title="Edit">
                       <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(r.id)}
-                      title="Delete"
-                      className="p-1.5 rounded-lg hover:bg-red-100 text-muted-foreground hover:text-red-600 transition-colors"
-                    >
+                    </IconButton>
+                    <IconButton variant="danger" onClick={() => handleDelete(r.id)} title="Delete">
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    </IconButton>
                   </div>
                 </li>
               )

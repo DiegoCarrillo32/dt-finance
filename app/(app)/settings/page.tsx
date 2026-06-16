@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { Plus, Trash2, Pencil, Download, LogOut, Sun, Moon, Monitor } from 'lucide-react'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
@@ -16,7 +17,7 @@ import { getIncomeSources, createIncomeSource, updateIncomeSource, deleteIncomeS
 import { getCategories, createCategory, deleteCategory } from '@/lib/actions/categories'
 import { setExchangeRate, getRecentRates } from '@/lib/actions/exchange-rates'
 import { exportTransactionsCsv } from '@/lib/actions/transactions'
-import { formatCurrency, parseCentsInput, centsToDisplay, getFirstDayOfMonth } from '@/lib/utils'
+import { formatCurrency, parseCentsInput, centsToDisplay } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { Category, Currency, IncomeSource } from '@/lib/types'
@@ -96,18 +97,16 @@ function MonthlyIncomeSection() {
                   {formatCurrency(s.amount_cents, s.currency)} / month
                 </p>
               </div>
-              <button
-                onClick={() => setEditing(s)}
-                className="p-1.5 rounded-lg hover:bg-warm-roast/10 text-muted-foreground"
-              >
+              <IconButton onClick={() => setEditing(s)} title="Edit">
                 <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
+              </IconButton>
+              <IconButton
+                variant="danger"
+                title="Delete"
                 onClick={() => startTransition(async () => { await deleteIncomeSource(s.id); load() })}
-                className="p-1.5 rounded-lg hover:bg-red-100 text-muted-foreground hover:text-red-600"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              </IconButton>
             </li>
           ))}
         </ul>
@@ -233,12 +232,13 @@ function BudgetLimitsSection() {
                 <Badge variant={pct >= 100 ? 'danger' : pct >= 80 ? 'warning' : 'success'}>
                   {pct}%
                 </Badge>
-                <button
+                <IconButton
+                  variant="danger"
+                  title="Delete"
                   onClick={() => startTransition(async () => { await deleteBudgetLimit(l.id); load() })}
-                  className="p-1.5 rounded-lg hover:bg-red-100 text-muted-foreground hover:text-red-600"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                </IconButton>
               </li>
             )
           })}
@@ -329,15 +329,16 @@ function CategoriesSection() {
             />
             <span className="text-sm flex-1">{c.name}</span>
             <Badge variant="muted">{c.type}</Badge>
-            <button
+            <IconButton
+              variant="danger"
+              title="Delete"
               onClick={() => {
                 if (!confirm('Delete category? This may fail if transactions use it.')) return
                 startTransition(async () => { await deleteCategory(c.id); load() })
               }}
-              className="p-1.5 rounded-lg hover:bg-red-100 text-muted-foreground hover:text-red-600"
             >
               <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            </IconButton>
           </li>
         ))}
       </ul>
@@ -416,10 +417,10 @@ function ExchangeRatesSection() {
   return (
     <Card>
       <CardHeader><CardTitle>Exchange Rates (USD → CRC)</CardTitle></CardHeader>
-      <form onSubmit={handleSubmit} className="flex gap-3 mb-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3 mb-4 sm:flex-row">
         <Input name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="flex-1" />
         <Input name="rate" type="number" step="0.0001" placeholder="510.0000" className="flex-1" />
-        <Button type="submit" size="sm" loading={pending}>Set</Button>
+        <Button type="submit" loading={pending} className="sm:w-auto">Set</Button>
       </form>
       {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
       {pending && rates.length === 0 ? (

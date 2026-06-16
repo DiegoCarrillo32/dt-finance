@@ -83,6 +83,7 @@ export async function getTransactions({
   categoryId,
   accountId,
   type,
+  search,
 }: {
   page?: number
   pageSize?: number
@@ -91,6 +92,7 @@ export async function getTransactions({
   categoryId?: string
   accountId?: string
   type?: TransactionType
+  search?: string
 } = {}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -112,6 +114,11 @@ export async function getTransactions({
   if (categoryId) query = query.eq('category_id', categoryId)
   if (accountId) query = query.eq('account_id', accountId)
   if (type) query = query.eq('type', type)
+  if (search?.trim()) {
+    // Escape PostgREST `ilike` wildcards/commas so user input is matched literally.
+    const term = search.trim().replace(/[%,_]/g, (m) => `\\${m}`)
+    query = query.ilike('description', `%${term}%`)
+  }
 
   const { data, count } = await query
   return { data: data ?? [], count: count ?? 0 }

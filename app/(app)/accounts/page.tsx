@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -67,18 +68,12 @@ export default function AccountsPage() {
                 {formatCurrency(Math.abs(a.balance_cents), a.currency)}
               </p>
               <div className="flex gap-1">
-                <button
-                  onClick={() => setEditing(a)}
-                  className="p-1.5 rounded-lg hover:bg-warm-roast/10 text-muted-foreground"
-                >
+                <IconButton onClick={() => setEditing(a)} title="Edit">
                   <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => handleDelete(a.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-100 text-muted-foreground hover:text-red-600"
-                >
+                </IconButton>
+                <IconButton variant="danger" onClick={() => handleDelete(a.id)} title="Delete">
                   <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                </IconButton>
               </div>
             </Card>
           ))}
