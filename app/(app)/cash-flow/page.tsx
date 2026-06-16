@@ -1,29 +1,21 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SkeletonCards } from '@/components/ui/Skeleton'
 import { getCashFlowForecast } from '@/lib/actions/cash-flow'
 import { formatCurrency } from '@/lib/utils'
-import type { CashFlowMonth } from '@/lib/actions/cash-flow'
+import { queryKeys } from '@/lib/queryKeys'
 
 export default function CashFlowPage() {
-  const [months, setMonths] = useState<CashFlowMonth[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [pending, startTransition] = useTransition()
+  const { data: months = [], isPending } = useQuery({
+    queryKey: queryKeys.cashFlow(3),
+    queryFn: () => getCashFlowForecast(3),
+  })
   const [openMonths, setOpenMonths] = useState<Set<number>>(new Set())
-
-  async function load() {
-    const data = await getCashFlowForecast(3)
-    setMonths(data)
-    setLoaded(true)
-  }
-
-  useEffect(() => {
-    startTransition(() => { load() })
-  }, [])
 
   function toggleMonth(index: number) {
     setOpenMonths((prev) => {
@@ -52,7 +44,7 @@ export default function CashFlowPage() {
         </p>
       </div>
 
-      {pending && !loaded ? (
+      {isPending ? (
         <SkeletonCards count={3} />
       ) : months.length === 0 ? (
         <Card>

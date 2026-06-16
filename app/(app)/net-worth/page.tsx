@@ -1,42 +1,33 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/ui/Card'
 import { SkeletonCards } from '@/components/ui/Skeleton'
 import { getNetWorth } from '@/lib/actions/net-worth'
 import { formatCurrency } from '@/lib/utils'
-import type { NetWorthSummary } from '@/lib/actions/net-worth'
+import { queryKeys } from '@/lib/queryKeys'
 
 export default function NetWorthPage() {
-  const [data, setData] = useState<NetWorthSummary | null>(null)
-  const [loaded, setLoaded] = useState(false)
-  const [pending, startTransition] = useTransition()
-
-  async function load() {
-    const result = await getNetWorth()
-    setData(result)
-    setLoaded(true)
-  }
-
-  useEffect(() => {
-    startTransition(() => { load() })
-  }, [])
+  const { data, isPending } = useQuery({
+    queryKey: queryKeys.netWorth,
+    queryFn: () => getNetWorth(),
+  })
 
   const hasNoData =
-    loaded &&
-    data !== null &&
+    !isPending &&
+    data != null &&
     data.accounts.length === 0 &&
     data.goals.length === 0 &&
     data.debts.length === 0
 
-  const isEmpty = loaded && data === null
+  const isEmpty = !isPending && data == null
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <h1 className="font-heading text-3xl text-expresso">Net Worth</h1>
 
-      {pending && !loaded ? (
+      {isPending ? (
         <SkeletonCards count={4} />
       ) : isEmpty || hasNoData ? (
         <Card>

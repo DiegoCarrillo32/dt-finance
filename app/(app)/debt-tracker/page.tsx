@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Plus, Pencil, Trash2, CreditCard } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -18,6 +19,7 @@ import {
   makeDebtPayment,
 } from '@/lib/actions/debts'
 import { formatCurrency, parseCentsInput, getDayOfMonthSuffix } from '@/lib/utils'
+import { queryKeys, queryKeyPrefix } from '@/lib/queryKeys'
 import type { Currency, Debt, DebtType } from '@/lib/types'
 
 const DEBT_TYPE_LABELS: Record<DebtType, string> = {
@@ -39,20 +41,21 @@ const CURRENCY_OPTIONS = [
 ]
 
 export default function DebtTrackerPage() {
-  const [debts, setDebts] = useState<Debt[]>([])
+  const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Debt | null>(null)
   const [paying, setPaying] = useState<Debt | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
-  async function load() {
-    const data = await getDebts()
-    setDebts(data as Debt[])
+  const { data: debts = [], isPending } = useQuery({
+    queryKey: queryKeys.debts,
+    queryFn: () => getDebts() as Promise<Debt[]>,
+  })
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.debts })
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.netWorth })
   }
-
-  useEffect(() => {
-    startTransition(() => { load() })
-  }, [])
 
   const totalDebtCents = debts.reduce((sum, d) => sum + d.current_balance_cents, 0)
   const totalOriginalCents = debts.reduce((sum, d) => sum + d.original_amount_cents, 0)
@@ -62,7 +65,7 @@ export default function DebtTrackerPage() {
     if (!confirm('Delete this item?')) return
     startTransition(async () => {
       await deleteDebt(debt.id)
-      load()
+      invalidate()
     })
   }
 
@@ -82,7 +85,7 @@ export default function DebtTrackerPage() {
       </div>
 
       {/* Summary card */}
-      {(debts.length > 0 || !pending) && (
+      {(debts.length > 0 || !isPending) && (
         <Card className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-xs text-muted-foreground mb-1">Total Debt</p>
@@ -99,7 +102,7 @@ export default function DebtTrackerPage() {
         </Card>
       )}
 
-      {pending && debts.length === 0 ? (
+      {isPending ? (
         <SkeletonCards count={3} />
       ) : debts.length === 0 ? (
         <Card>
@@ -213,7 +216,7 @@ export default function DebtTrackerPage() {
         <DebtForm
           onSuccess={() => {
             setShowCreate(false)
-            startTransition(() => { load() })
+            invalidate()
           }}
         />
       </Modal>
@@ -225,7 +228,7 @@ export default function DebtTrackerPage() {
             debt={editing}
             onSuccess={() => {
               setEditing(null)
-              startTransition(() => { load() })
+              invalidate()
             }}
           />
         )}
@@ -238,7 +241,7 @@ export default function DebtTrackerPage() {
             debt={paying}
             onSuccess={() => {
               setPaying(null)
-              startTransition(() => { load() })
+              invalidate()
             }}
           />
         )}

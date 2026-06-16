@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Pencil, Trash2, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -12,18 +13,16 @@ import { getTransactions, softDeleteTransaction } from '@/lib/actions/transactio
 import { getAccounts } from '@/lib/actions/accounts'
 import { getCategories } from '@/lib/actions/categories'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { queryKeys, queryKeyPrefix } from '@/lib/queryKeys'
 import type { Account, Category, Transaction, TransactionType } from '@/lib/types'
 
 const PAGE_SIZE = 20
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [total, setTotal] = useState(0)
+  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
   const [editing, setEditing] = useState<Transaction | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
   // Filters
   const [type, setType] = useState<TransactionType | ''>('')
@@ -32,6 +31,39 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
+  // Reference data is shared with the rest of the app via these query keys.
+  const { data: accounts = [] } = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: () => getAccounts() as Promise<Account[]>,
+  })
+  const { data: categories = [] } = useQuery({
+    queryKey: queryKeys.categories(),
+    queryFn: () => getCategories() as Promise<Category[]>,
+  })
+
+  const { data: list, isPending } = useQuery({
+    queryKey: queryKeys.transactions({
+      page,
+      type: type || undefined,
+      accountId: accountId || undefined,
+      categoryId: categoryId || undefined,
+      search: debouncedSearch || undefined,
+    }),
+    queryFn: () =>
+      getTransactions({
+        page,
+        pageSize: PAGE_SIZE,
+        type: type || undefined,
+        accountId: accountId || undefined,
+        categoryId: categoryId || undefined,
+        search: debouncedSearch || undefined,
+      }),
+    // Keep showing the previous page/filter results while the next load runs.
+    placeholderData: keepPreviousData,
+  })
+
+  const transactions = (list?.data ?? []) as Transaction[]
+  const total = list?.count ?? 0
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const hasFilters = !!(type || accountId || categoryId || debouncedSearch)
 
@@ -41,40 +73,11 @@ export default function TransactionsPage() {
     [categories, type],
   )
 
-  // Reference data only needs to load once.
-  useEffect(() => {
-    Promise.all([getAccounts(), getCategories()]).then(([accs, cats]) => {
-      setAccounts(accs as Account[])
-      setCategories(cats as Category[])
-    })
-  }, [])
-
   // Debounce the free-text search so we don't query on every keystroke.
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search.trim()), 300)
     return () => clearTimeout(id)
   }, [search])
-
-  function loadList() {
-    startTransition(async () => {
-      const { data, count } = await getTransactions({
-        page,
-        pageSize: PAGE_SIZE,
-        type: type || undefined,
-        accountId: accountId || undefined,
-        categoryId: categoryId || undefined,
-        search: debouncedSearch || undefined,
-      })
-      setTransactions(data as Transaction[])
-      setTotal(count)
-    })
-  }
-
-  // Reload the list whenever the page or any filter changes.
-  useEffect(() => {
-    loadList()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, type, accountId, categoryId, debouncedSearch])
 
   // Any filter change resets to the first page.
   function changeFilter<T>(setter: (v: T) => void, value: T) {
@@ -95,7 +98,10 @@ export default function TransactionsPage() {
     if (!confirm('Delete this transaction?')) return
     startTransition(async () => {
       await softDeleteTransaction(id)
-      loadList()
+      queryClient.invalidateQueries({ queryKey: queryKeyPrefix.transactions })
+      queryClient.invalidateQueries({ queryKey: queryKeyPrefix.statistics })
+      queryClient.invalidateQueries({ queryKey: queryKeyPrefix.accounts })
+      queryClient.invalidateQueries({ queryKey: queryKeyPrefix.netWorth })
     })
   }
 
@@ -182,7 +188,7 @@ export default function TransactionsPage() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        {pending && transactions.length === 0 ? (
+        {isPending ? (
           <SkeletonRows count={6} />
         ) : transactions.length === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">
@@ -272,7 +278,10 @@ export default function TransactionsPage() {
             transaction={editing}
             onSuccess={() => {
               setEditing(null)
-              loadList()
+              queryClient.invalidateQueries({ queryKey: queryKeyPrefix.transactions })
+              queryClient.invalidateQueries({ queryKey: queryKeyPrefix.statistics })
+              queryClient.invalidateQueries({ queryKey: queryKeyPrefix.accounts })
+              queryClient.invalidateQueries({ queryKey: queryKeyPrefix.netWorth })
             }}
           />
         )}

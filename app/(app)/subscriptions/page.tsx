@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -19,6 +20,7 @@ import {
 } from '@/lib/actions/subscriptions'
 import { monthlyEquivalent, yearlyEquivalent } from '@/lib/finance'
 import { formatCurrency, parseCentsInput, formatDate } from '@/lib/utils'
+import { queryKeys, queryKeyPrefix } from '@/lib/queryKeys'
 import type { BillingPeriod, Currency, Subscription } from '@/lib/types'
 
 const BILLING_PERIOD_LABELS: Record<BillingPeriod, string> = {
@@ -39,27 +41,29 @@ const CURRENCY_OPTIONS = [
 ]
 
 export default function SubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
+  const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Subscription | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
-  async function load() {
-    const data = await getSubscriptions()
-    // Sort: active first, then by next_billing_date
-    const sorted = [...(data as Subscription[])].sort((a, b) => {
-      if (a.active !== b.active) return a.active ? -1 : 1
-      if (!a.next_billing_date && !b.next_billing_date) return 0
-      if (!a.next_billing_date) return 1
-      if (!b.next_billing_date) return -1
-      return a.next_billing_date.localeCompare(b.next_billing_date)
-    })
-    setSubscriptions(sorted)
+  const { data: subscriptions = [], isPending } = useQuery({
+    queryKey: queryKeys.subscriptions,
+    queryFn: async () => {
+      const data = (await getSubscriptions()) as Subscription[]
+      // Sort: active first, then by next_billing_date
+      return [...data].sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1
+        if (!a.next_billing_date && !b.next_billing_date) return 0
+        if (!a.next_billing_date) return 1
+        if (!b.next_billing_date) return -1
+        return a.next_billing_date.localeCompare(b.next_billing_date)
+      })
+    },
+  })
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.subscriptions })
   }
-
-  useEffect(() => {
-    startTransition(() => { load() })
-  }, [])
 
   // Compute totals per currency (active subscriptions only)
   const activeUSD = subscriptions.filter((s) => s.active && s.currency === 'USD')
@@ -88,14 +92,14 @@ export default function SubscriptionsPage() {
     if (!confirm('Delete this item?')) return
     startTransition(async () => {
       await deleteSubscription(sub.id)
-      load()
+      invalidate()
     })
   }
 
   function handleToggleActive(sub: Subscription) {
     startTransition(async () => {
       await toggleSubscriptionActive(sub.id, !sub.active)
-      load()
+      invalidate()
     })
   }
 
@@ -110,7 +114,7 @@ export default function SubscriptionsPage() {
       </div>
 
       {/* Summary cards */}
-      {(subscriptions.length > 0 || !pending) && (
+      {(subscriptions.length > 0 || !isPending) && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <Card className="space-y-1">
             <p className="text-xs text-muted-foreground">Monthly (USD)</p>
@@ -139,7 +143,7 @@ export default function SubscriptionsPage() {
         </div>
       )}
 
-      {pending && subscriptions.length === 0 ? (
+      {isPending ? (
         <SkeletonCards count={3} />
       ) : subscriptions.length === 0 ? (
         <Card>
@@ -241,7 +245,7 @@ export default function SubscriptionsPage() {
         <SubscriptionForm
           onSuccess={() => {
             setShowCreate(false)
-            startTransition(() => { load() })
+            invalidate()
           }}
         />
       </Modal>
@@ -253,7 +257,7 @@ export default function SubscriptionsPage() {
             subscription={editing}
             onSuccess={() => {
               setEditing(null)
-              startTransition(() => { load() })
+              invalidate()
             }}
           />
         )}

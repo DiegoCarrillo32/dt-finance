@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -11,29 +12,32 @@ import { Select } from '@/components/ui/Select'
 import { SkeletonCards } from '@/components/ui/Skeleton'
 import { getAccountsWithBalances, createAccount, updateAccount, deleteAccount } from '@/lib/actions/accounts'
 import { formatCurrency } from '@/lib/utils'
+import { queryKeys, queryKeyPrefix } from '@/lib/queryKeys'
 import type { Account, Currency } from '@/lib/types'
 import { Wallet } from 'lucide-react'
 
 export default function AccountsPage() {
-  const [accounts, setAccounts] = useState<(Account & { balance_cents: number })[]>([])
+  const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Account | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
-  async function load() {
-    const data = await getAccountsWithBalances()
-    setAccounts(data as (Account & { balance_cents: number })[])
+  const { data: accounts = [], isPending } = useQuery({
+    queryKey: queryKeys.accountsWithBalances,
+    queryFn: () =>
+      getAccountsWithBalances() as Promise<(Account & { balance_cents: number })[]>,
+  })
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.accounts })
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.netWorth })
   }
-
-  useEffect(() => {
-    startTransition(() => { load() })
-  }, [])
 
   function handleDelete(id: string) {
     if (!confirm('Delete this account? This will fail if there are transactions linked to it.')) return
     startTransition(async () => {
       await deleteAccount(id)
-      load()
+      invalidate()
     })
   }
 
@@ -47,7 +51,7 @@ export default function AccountsPage() {
         </Button>
       </div>
 
-      {pending && accounts.length === 0 ? (
+      {isPending ? (
         <SkeletonCards count={3} />
       ) : accounts.length === 0 ? (
         <Card>
@@ -84,7 +88,7 @@ export default function AccountsPage() {
         <AccountForm
           onSuccess={() => {
             setShowCreate(false)
-            startTransition(() => { load() })
+            invalidate()
           }}
         />
       </Modal>
@@ -95,7 +99,7 @@ export default function AccountsPage() {
             account={editing}
             onSuccess={() => {
               setEditing(null)
-              startTransition(() => { load() })
+              invalidate()
             }}
           />
         )}

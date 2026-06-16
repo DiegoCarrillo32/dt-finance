@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { CurrencyToggle } from '@/components/CurrencyToggle'
@@ -9,32 +10,29 @@ import { NetCashflowChart } from '@/components/charts/NetCashflowChart'
 import { MonthComparisonChart } from '@/components/charts/MonthComparisonChart'
 import { getMonthlyStats, getLastSixMonthsTotals } from '@/lib/actions/statistics'
 import { formatCurrency } from '@/lib/utils'
+import { queryKeys } from '@/lib/queryKeys'
 import type { Currency } from '@/lib/types'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-
-type MonthStats = Awaited<ReturnType<typeof getMonthlyStats>>
 
 export default function StatisticsPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [currency, setCurrency] = useState<Currency>('USD')
-  const [stats, setStats] = useState<MonthStats>(null)
-  const [history, setHistory] = useState<Awaited<ReturnType<typeof getLastSixMonthsTotals>>>([])
-  const [pending, startTransition] = useTransition()
 
-  function load() {
-    startTransition(async () => {
-      const [s, h] = await Promise.all([
-        getMonthlyStats(year, month, currency),
-        getLastSixMonthsTotals(currency),
-      ])
-      setStats(s)
-      setHistory(h)
-    })
-  }
+  const statsQuery = useQuery({
+    queryKey: queryKeys.statisticsMonthly(year, month, currency),
+    queryFn: () => getMonthlyStats(year, month, currency),
+  })
+  const historyQuery = useQuery({
+    queryKey: queryKeys.statisticsHistory(currency),
+    queryFn: () => getLastSixMonthsTotals(currency),
+  })
 
-  useEffect(() => { load() }, [year, month, currency])
+  const stats = statsQuery.data
+  const history = historyQuery.data ?? []
+  // Only show the skeleton while the visible month has no cached data yet.
+  const pending = statsQuery.isPending
 
   function prevMonth() {
     if (month === 1) { setYear((y) => y - 1); setMonth(12) }

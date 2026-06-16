@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Plus, Pencil, Trash2, PauseCircle, PlayCircle, CheckCircle2 } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -21,6 +22,7 @@ import { getMonthlySummary, type MonthlySummary } from '@/lib/actions/income'
 import { getAccounts } from '@/lib/actions/accounts'
 import { getCategories } from '@/lib/actions/categories'
 import { formatCurrency, getDayOfMonthSuffix } from '@/lib/utils'
+import { queryKeys, queryKeyPrefix } from '@/lib/queryKeys'
 import type { Account, Category, Currency, RecurringExpense } from '@/lib/types'
 
 type RecurringWithStatus = RecurringExpense & {
@@ -48,54 +50,57 @@ function scheduleText(r: RecurringWithStatus): string {
 }
 
 export default function RecurringPage() {
-  const [items, setItems] = useState<RecurringWithStatus[]>([])
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<RecurringExpense | null>(null)
   const [currency, setCurrency] = useState<Currency>('USD')
-  const [summary, setSummary] = useState<MonthlySummary | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
-  async function load() {
-    const [data, accs, cats] = await Promise.all([
-      getRecurringWithStatus(),
-      getAccounts(),
-      getCategories(),
-    ])
-    setItems(data as RecurringWithStatus[])
-    setAccounts(accs as Account[])
-    setCategories(cats as Category[])
+  const { data: items = [], isPending } = useQuery({
+    queryKey: queryKeys.recurringStatus,
+    queryFn: () => getRecurringWithStatus() as Promise<RecurringWithStatus[]>,
+  })
+  const { data: accounts = [] } = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: () => getAccounts() as Promise<Account[]>,
+  })
+  const { data: categories = [] } = useQuery({
+    queryKey: queryKeys.categories(),
+    queryFn: () => getCategories() as Promise<Category[]>,
+  })
+  const { data: summary } = useQuery({
+    queryKey: queryKeys.monthlySummary(currency),
+    queryFn: () => getMonthlySummary(currency) as Promise<MonthlySummary>,
+  })
+
+  // Marking a recurring expense paid records a transaction, so it touches the
+  // monthly summary, statistics and account balances as well.
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.recurring })
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.income })
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.statistics })
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.accounts })
   }
-
-  useEffect(() => {
-    startTransition(() => { load() })
-  }, [])
-
-  // Reload the headline summary whenever the display currency changes (and after edits).
-  useEffect(() => {
-    getMonthlySummary(currency).then(setSummary)
-  }, [currency, items])
 
   function handleDelete(id: string) {
     if (!confirm('Delete this recurring expense?')) return
     startTransition(async () => {
       await deleteRecurring(id)
-      load()
+      invalidate()
     })
   }
 
   function handleToggle(id: string, active: boolean) {
     startTransition(async () => {
       await toggleRecurringActive(id, !active)
-      load()
+      invalidate()
     })
   }
 
   function handleMarkPaid(id: string) {
     startTransition(async () => {
       await markRecurringPaid(id)
-      load()
+      invalidate()
     })
   }
 
@@ -104,7 +109,7 @@ export default function RecurringPage() {
     if (!confirm('Mark as pending again? This removes the payment recorded for this month.')) return
     startTransition(async () => {
       await unmarkRecurringPaid(transactionId)
-      load()
+      invalidate()
     })
   }
 
@@ -164,7 +169,7 @@ export default function RecurringPage() {
         </span>
       </div>
 
-      {pending && items.length === 0 ? (
+      {isPending ? (
         <Card className="p-0 overflow-hidden">
           <SkeletonRows count={5} />
         </Card>
@@ -266,7 +271,7 @@ export default function RecurringPage() {
           categories={categories}
           onSuccess={() => {
             setShowForm(false)
-            startTransition(() => { load() })
+            invalidate()
           }}
         />
       </Modal>
@@ -279,7 +284,7 @@ export default function RecurringPage() {
             recurring={editing}
             onSuccess={() => {
               setEditing(null)
-              startTransition(() => { load() })
+              invalidate()
             }}
           />
         )}

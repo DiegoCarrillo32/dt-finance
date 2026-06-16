@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Plus } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -11,22 +12,24 @@ import { SkeletonCards } from '@/components/ui/Skeleton'
 import { GoalForm } from '@/components/forms/GoalForm'
 import { getSavingGoals, addGoalContribution, updateGoalStatus } from '@/lib/actions/goals'
 import { formatCurrency, formatDate, parseCentsInput } from '@/lib/utils'
+import { queryKeys, queryKeyPrefix } from '@/lib/queryKeys'
 import type { Currency, SavingGoal } from '@/lib/types'
 
 export default function GoalsPage() {
-  const [goals, setGoals] = useState<SavingGoal[]>([])
+  const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [contributing, setContributing] = useState<SavingGoal | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
-  async function load() {
-    const data = await getSavingGoals()
-    setGoals(data as SavingGoal[])
+  const { data: goals = [], isPending } = useQuery({
+    queryKey: queryKeys.goals(),
+    queryFn: () => getSavingGoals() as Promise<SavingGoal[]>,
+  })
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.goals })
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.netWorth })
   }
-
-  useEffect(() => {
-    startTransition(() => { load() })
-  }, [])
 
   function projectCompletion(goal: SavingGoal): string | null {
     if (goal.current_amount_cents === 0) return null
@@ -49,7 +52,7 @@ export default function GoalsPage() {
         </Button>
       </div>
 
-      {pending && goals.length === 0 ? (
+      {isPending ? (
         <SkeletonCards count={3} />
       ) : goals.length === 0 ? (
         <Card>
@@ -128,7 +131,7 @@ export default function GoalsPage() {
                       onClick={() => {
                         startTransition(async () => {
                           await updateGoalStatus(g.id, 'paused')
-                          load()
+                          invalidate()
                         })
                       }}
                     >
@@ -142,7 +145,7 @@ export default function GoalsPage() {
                       onClick={() => {
                         startTransition(async () => {
                           await updateGoalStatus(g.id, 'active')
-                          load()
+                          invalidate()
                         })
                       }}
                     >
@@ -160,7 +163,7 @@ export default function GoalsPage() {
         <GoalForm
           onSuccess={() => {
             setShowCreate(false)
-            startTransition(() => { load() })
+            invalidate()
           }}
         />
       </Modal>
@@ -175,7 +178,7 @@ export default function GoalsPage() {
             goal={contributing}
             onSuccess={() => {
               setContributing(null)
-              startTransition(() => { load() })
+              invalidate()
             }}
           />
         )}

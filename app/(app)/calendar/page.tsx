@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { SkeletonCards } from '@/components/ui/Skeleton'
@@ -9,6 +10,7 @@ import { getRecurringExpenses } from '@/lib/actions/recurring'
 import { getSubscriptions } from '@/lib/actions/subscriptions'
 import { getDebts } from '@/lib/actions/debts'
 import { formatCurrency } from '@/lib/utils'
+import { queryKeys } from '@/lib/queryKeys'
 import type { Debt, RecurringExpense, Subscription } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -85,31 +87,30 @@ interface CalendarEvent {
 export default function CalendarPage() {
   const now = new Date()
   const [viewDate, setViewDate] = useState<Date>(new Date())
-  const [recurring, setRecurring] = useState<RecurringExpense[]>([])
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
-  const [debts, setDebts] = useState<Debt[]>([])
-  const [pending, startTransition] = useTransition()
 
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth() + 1
 
-  async function load() {
-    const [rec, subs, dbt] = await Promise.all([
-      getRecurringExpenses(),
-      getSubscriptions(),
-      getDebts(),
-    ])
-    setRecurring(rec as RecurringExpense[])
-    setSubscriptions(subs as Subscription[])
-    setDebts(dbt as Debt[])
-  }
+  // The underlying data is month-independent; events for the viewed month are
+  // derived client-side, so changing months never needs a refetch.
+  const recurringQuery = useQuery({
+    queryKey: queryKeys.recurringList,
+    queryFn: () => getRecurringExpenses() as Promise<RecurringExpense[]>,
+  })
+  const subscriptionsQuery = useQuery({
+    queryKey: queryKeys.subscriptions,
+    queryFn: () => getSubscriptions() as Promise<Subscription[]>,
+  })
+  const debtsQuery = useQuery({
+    queryKey: queryKeys.debts,
+    queryFn: () => getDebts() as Promise<Debt[]>,
+  })
 
-  useEffect(() => {
-    startTransition(() => {
-      load()
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewDate])
+  const recurring = recurringQuery.data ?? []
+  const subscriptions = subscriptionsQuery.data ?? []
+  const debts = debtsQuery.data ?? []
+  const isPending =
+    recurringQuery.isPending || subscriptionsQuery.isPending || debtsQuery.isPending
 
   function prevMonth() {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))
@@ -221,7 +222,7 @@ export default function CalendarPage() {
         </button>
       </div>
 
-      {pending && recurring.length === 0 && subscriptions.length === 0 && debts.length === 0 ? (
+      {isPending ? (
         <SkeletonCards count={3} />
       ) : (
         <>

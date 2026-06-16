@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Plus, Trash2, Pencil, Download, LogOut, Sun, Moon, Monitor } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -18,6 +19,7 @@ import { getCategories, createCategory, deleteCategory } from '@/lib/actions/cat
 import { setExchangeRate, getRecentRates } from '@/lib/actions/exchange-rates'
 import { exportTransactionsCsv } from '@/lib/actions/transactions'
 import { formatCurrency, parseCentsInput, centsToDisplay } from '@/lib/utils'
+import { queryKeys, queryKeyPrefix } from '@/lib/queryKeys'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { Category, Currency, IncomeSource } from '@/lib/types'
@@ -58,16 +60,19 @@ export default function SettingsPage() {
 }
 
 function MonthlyIncomeSection() {
-  const [sources, setSources] = useState<IncomeSource[]>([])
+  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<IncomeSource | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
-  async function load() {
-    setSources(await getIncomeSources())
+  const { data: sources = [], isPending } = useQuery({
+    queryKey: queryKeys.incomeSources,
+    queryFn: () => getIncomeSources(),
+  })
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.income })
   }
-
-  useEffect(() => { startTransition(() => { load() }) }, [])
 
   return (
     <Card>
@@ -83,7 +88,7 @@ function MonthlyIncomeSection() {
         Your expected salary each month. Used to show what&rsquo;s left after recurring expenses.
       </p>
 
-      {pending && sources.length === 0 ? (
+      {isPending ? (
         <SkeletonLines count={2} />
       ) : sources.length === 0 ? (
         <p className="text-sm text-muted-foreground">No income added yet.</p>
@@ -103,7 +108,7 @@ function MonthlyIncomeSection() {
               <IconButton
                 variant="danger"
                 title="Delete"
-                onClick={() => startTransition(async () => { await deleteIncomeSource(s.id); load() })}
+                onClick={() => startTransition(async () => { await deleteIncomeSource(s.id); invalidate() })}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </IconButton>
@@ -113,13 +118,13 @@ function MonthlyIncomeSection() {
       )}
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Monthly Income">
-        <IncomeForm onSuccess={() => { setShowForm(false); startTransition(() => { load() }) }} />
+        <IncomeForm onSuccess={() => { setShowForm(false); invalidate() }} />
       </Modal>
       <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit Monthly Income">
         {editing && (
           <IncomeForm
             source={editing}
-            onSuccess={() => { setEditing(null); startTransition(() => { load() }) }}
+            onSuccess={() => { setEditing(null); invalidate() }}
           />
         )}
       </Modal>
@@ -178,18 +183,22 @@ function IncomeForm({ source, onSuccess }: { source?: IncomeSource; onSuccess: (
 }
 
 function BudgetLimitsSection() {
-  const [limits, setLimits] = useState<Awaited<ReturnType<typeof getBudgetLimits>>>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
-  async function load() {
-    const [l, c] = await Promise.all([getBudgetLimits(), getCategories('expense')])
-    setLimits(l)
-    setCategories(c as Category[])
+  const { data: limits = [], isPending } = useQuery({
+    queryKey: queryKeys.budgets,
+    queryFn: () => getBudgetLimits(),
+  })
+  const { data: categories = [] } = useQuery({
+    queryKey: queryKeys.categories('expense'),
+    queryFn: () => getCategories('expense') as Promise<Category[]>,
+  })
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.budgets })
   }
-
-  useEffect(() => { startTransition(() => { load() }) }, [])
 
   return (
     <Card>
@@ -200,7 +209,7 @@ function BudgetLimitsSection() {
             <Button size="sm" variant="secondary" onClick={() => {
               startTransition(async () => {
                 await copyLastMonthBudgets()
-                load()
+                invalidate()
               })
             }}>Copy Last Month</Button>
             <Button size="sm" onClick={() => setShowAdd(true)}>
@@ -210,7 +219,7 @@ function BudgetLimitsSection() {
         </div>
       </CardHeader>
 
-      {pending && limits.length === 0 ? (
+      {isPending ? (
         <SkeletonLines count={2} />
       ) : limits.length === 0 ? (
         <p className="text-sm text-muted-foreground">No budget limits set.</p>
@@ -235,7 +244,7 @@ function BudgetLimitsSection() {
                 <IconButton
                   variant="danger"
                   title="Delete"
-                  onClick={() => startTransition(async () => { await deleteBudgetLimit(l.id); load() })}
+                  onClick={() => startTransition(async () => { await deleteBudgetLimit(l.id); invalidate() })}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </IconButton>
@@ -248,7 +257,7 @@ function BudgetLimitsSection() {
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Set Budget Limit">
         <BudgetForm
           categories={categories}
-          onSuccess={() => { setShowAdd(false); startTransition(() => { load() }) }}
+          onSuccess={() => { setShowAdd(false); invalidate() }}
         />
       </Modal>
     </Card>
@@ -296,16 +305,18 @@ function BudgetForm({ categories, onSuccess }: { categories: Category[]; onSucce
 }
 
 function CategoriesSection() {
-  const [categories, setCategories] = useState<Category[]>([])
+  const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
-  async function load() {
-    const data = await getCategories()
-    setCategories(data as Category[])
+  const { data: categories = [], isPending } = useQuery({
+    queryKey: queryKeys.categories(),
+    queryFn: () => getCategories() as Promise<Category[]>,
+  })
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: queryKeyPrefix.categories })
   }
-
-  useEffect(() => { startTransition(() => { load() }) }, [])
 
   return (
     <Card>
@@ -317,7 +328,7 @@ function CategoriesSection() {
           </Button>
         </div>
       </CardHeader>
-      {pending && categories.length === 0 ? (
+      {isPending ? (
         <SkeletonLines count={4} />
       ) : (
       <ul className="space-y-2">
@@ -334,7 +345,7 @@ function CategoriesSection() {
               title="Delete"
               onClick={() => {
                 if (!confirm('Delete category? This may fail if transactions use it.')) return
-                startTransition(async () => { await deleteCategory(c.id); load() })
+                startTransition(async () => { await deleteCategory(c.id); invalidate() })
               }}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -344,7 +355,7 @@ function CategoriesSection() {
       </ul>
       )}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="New Category">
-        <CategoryForm onSuccess={() => { setShowAdd(false); startTransition(() => { load() }) }} />
+        <CategoryForm onSuccess={() => { setShowAdd(false); invalidate() }} />
       </Modal>
     </Card>
   )
@@ -390,16 +401,14 @@ function CategoryForm({ onSuccess }: { onSuccess: () => void }) {
 }
 
 function ExchangeRatesSection() {
-  const [rates, setRates] = useState<Awaited<ReturnType<typeof getRecentRates>>>([])
+  const queryClient = useQueryClient()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string>()
 
-  async function load() {
-    const data = await getRecentRates(10)
-    setRates(data)
-  }
-
-  useEffect(() => { startTransition(() => { load() }) }, [])
+  const { data: rates = [], isPending } = useQuery({
+    queryKey: queryKeys.recentRates(10),
+    queryFn: () => getRecentRates(10),
+  })
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -410,7 +419,8 @@ function ExchangeRatesSection() {
     startTransition(async () => {
       const result = await setExchangeRate(date, rate)
       if (!result.success) return setError(result.error)
-      load()
+      // A new rate changes every currency-converted figure across the app.
+      queryClient.invalidateQueries()
     })
   }
 
@@ -423,7 +433,7 @@ function ExchangeRatesSection() {
         <Button type="submit" loading={pending} className="sm:w-auto">Set</Button>
       </form>
       {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
-      {pending && rates.length === 0 ? (
+      {isPending ? (
         <SkeletonLines count={3} />
       ) : (
         <ul className="space-y-1">
