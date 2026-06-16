@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Gotham';
+  src: url('/fonts/Gotham-Font/GothamBook.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham';
+  src: url('/fonts/Gotham-Font/GothamBold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Titan One';
+  src: url('/fonts/TitanOne-Regular.woff2') format('woff2'),
+       url('/fonts/Titan_One/TitanOne-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Brand colors as space-separated RGB channels */
+  --expresso: 65 5 5;
+  --warm-roast: 122 19 24;
+  --coffee-fruit: 185 35 35;
+  --white-pergamino: 255 245 225;
+  --fruit-light: 214 69 69;
+
+  /* Semantic tokens */
+  --background: 255 245 225;
+  --foreground: 65 5 5;
+  --card: 255 251 242;
+  --card-foreground: 65 5 5;
+  --primary: 185 35 35;
+  --primary-foreground: 255 255 255;
+  --secondary: 122 19 24;
+  --secondary-foreground: 255 255 255;
+  --muted: 245 238 225;
+  --muted-foreground: 120 90 80;
+  --border: 122 19 24;
+  --ring: 185 35 35;
+}
+
+.dark {
+  --expresso: 255 245 225;
+  --warm-roast: 194 181 163;
+  --coffee-fruit: 185 35 35;
+  --white-pergamino: 20 13 13;
+  --fruit-light: 214 69 69;
+
+  --background: 20 13 13;
+  --foreground: 255 245 225;
+  --card: 32 22 22;
+  --card-foreground: 255 245 225;
+  --primary: 185 35 35;
+  --primary-foreground: 255 255 255;
+  --secondary: 194 181 163;
+  --secondary-foreground: 20 13 13;
+  --muted: 45 30 30;
+  --muted-foreground: 180 160 140;
+  --border: 194 181 163;
+  --ring: 185 35 35;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans text-sm;
+  }
+}

@@ -1,0 +1,27 @@
+# deps
+node_modules
+.pnp
+.pnp.js
+
+# build
+.next/
+out/
+build
+
+# PWA generated
+public/sw.js
+public/workbox-*.js
+public/worker-*.js
+public/sw.js.map
+public/workbox-*.js.map
+
+# env
+.env
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

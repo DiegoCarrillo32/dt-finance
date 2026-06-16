@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offline — Dos Tazas Finance</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #fff5e1;
+      color: #410505;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 1rem;
+      text-align: center;
+    }
+    h1 { font-size: 1.75rem; font-weight: 700; }
+    p { color: #7a1318; font-size: 0.95rem; max-width: 20rem; }
+    button {
+      background: #7a1318;
+      color: #fff;
+      border: none;
+      border-radius: 9999px;
+      padding: 0.6rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: #b92323; }
+  </style>
+</head>
+<body>
+  <div style="font-size: 3rem">☕</div>
+  <h1>You're Offline</h1>
+  <p>No internet connection. Check your connection and try again.</p>
+  <button onclick="location.reload()">Try Again</button>
+</body>
+</html>

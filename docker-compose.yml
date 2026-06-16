@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "5172:3000"
+    env_file: .env.local
+    labels:
+      hub.enable: "true"
+      hub.name: "Kosti Finance"
+      hub.description: "Personal finance tracker Next.js app"
+      hub.port: "5172"
+      hub.tags: "Dev"
+      hub.health: "/api/health"
